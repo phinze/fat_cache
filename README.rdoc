@@ -1,6 +1,6 @@
-= washington_fat_cache
+= fat_cache
 
-Big queries got you down?  RAM to spare?  Let the washinton_fat_cache gem do
+Big queries got you down?  RAM to spare?  Let the fat_cache gem do
 the work for you.  Like its namesake, fat_cache wastes resources to serve
 impatience and trades ethics for convenience.
 

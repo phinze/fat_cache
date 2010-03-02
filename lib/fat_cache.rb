@@ -1,6 +1,6 @@
 require 'rubygems'
 require 'ruby-debug'
-class WashingtonFatCache
+class FatCache
 
   class << self
     @initted = false

@@ -4,11 +4,11 @@ require 'rake'
 begin
   require 'jeweler'
   Jeweler::Tasks.new do |gem|
-    gem.name = "washington_fat_cache"
+    gem.name = "fat_cache"
     gem.summary = %Q{A dead simple pure-ruby caching framework for large datasets.}
-    gem.description = %Q{Everyone knows it's the fat cache in washington that's really runnin' the show}
+    gem.description = %Q{A dead simple pure-ruby caching framework for large datasets.}
     gem.email = "paul.t.hinze@gmail.com"
-    gem.homepage = "http://github.com/phinze/washington_fat_cache"
+    gem.homepage = "http://github.com/phinze/fat_cache"
     gem.authors = ["phinze"]
     gem.add_development_dependency "rspec", ">= 1.2.9"
     gem.add_development_dependency "yard", ">= 0"

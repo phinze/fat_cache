@@ -1,6 +1,6 @@
 $LOAD_PATH.unshift(File.dirname(__FILE__))
 $LOAD_PATH.unshift(File.join(File.dirname(__FILE__), '..', 'lib'))
-require 'washington_fat_cache'
+require 'fat_cache'
 require 'spec'
 require 'spec/autorun'
 
