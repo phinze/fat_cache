@@ -83,7 +83,7 @@ describe FatCache do
     end
   end
 
-  describe 'index(key, on)' do
+  describe 'index(key, on) { optional_block }' do
     it 'raises an error if there is no raw data to index for specified key' do
       lambda {
         FatCache.index(:wishbone, :whats_the_story?)
@@ -99,19 +99,45 @@ describe FatCache do
     
     describe 'given a dataset which responds to methods' do
       before do
-        fruit = [
+        @fruit = [
           stub(:mango,  :grams_of_awesome => 3),
           stub(:banana, :grams_of_awesome => 10),
           stub(:apple,  :grams_of_awesome => 3)
         ]
-        FatCache.store(:fruit, fruit)
+        FatCache.store(:fruit, @fruit)
       end
+
       it 'calls each method specified in `on` array and uses the results as the index key' do
         FatCache.index(:fruit, [:grams_of_awesome])
         index = FatCache.get_index(:fruit, :grams_of_awesome)
         index.keys.should =~ [[3],[10]]
       end
+
+      describe 'when the optional block is specified' do
+        it 'does not send the symbols specified for `on` to the dataset members' do
+          FatCache.get(:fruit).each { |f| f.should_not_receive(:grams_of_awesome) }
+          FatCache.index(:fruit, :grams_of_awesome) { :dont_care }
+        end
+        
+        it 'indexes the dataset based on the return value of the block' do
+          FatCache.index(:fruit, :grams_of_awesome) { :so_many }
+          results = FatCache.lookup(:fruit, :by => :grams_of_awesome, :using => :so_many)
+          results.should =~ @fruit
+        end
+
+        it 'passes itself into the block as the first argument' do
+          FatCache.index(:fruit, :grams_of_awesome) { |cache, _| 
+            cache.should == FatCache
+          }
+        end
+
+        it 'passes each item into the block as the second argument' do
+          FatCache.get(:fruit).each { |f| f.should_receive(:seen) }
+          FatCache.index(:fruit, :grams_of_awesome) { |_, item| item.seen }
+        end
+      end
     end
+
   end
 
   describe 'invalidate(key)' do

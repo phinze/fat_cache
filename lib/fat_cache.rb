@@ -45,7 +45,7 @@ class FatCache
       return indexed_fatcache[key][by][using]
     end
 
-    def index(key, on)
+    def index(key, on, &block)
       # must have cache data to work with
       ensure_cached(key)
 
@@ -56,10 +56,21 @@ class FatCache
       indexed_fatcache[key] = {} unless indexed_fatcache.has_key?(key)
 
       raw_data = get(key)
-      
-      # calls each method specified in the `on` array once on each element in
-      # the raw dataset, and uses the results of those calls to key this index
-      indexed_fatcache[key][on] = raw_data.group_by { |x| on.map { |b| x.send(b) } }
+
+      if block
+        # make the cache available to the passed block, and ensure that
+        # the returned value is wrapped in an array (to keep these keys in line
+        # with the method sending strategy
+        wrapped_block = lambda { |item| [*block.call(self, item)] }
+
+        # pass each element of the raw data set into the block, which will
+        # compute the key for us
+        indexed_fatcache[key][on] = raw_data.group_by(&wrapped_block)
+      else
+        # call each method specified in the `on` array once on each element in
+        # the raw dataset, and use the results of those calls to key this index
+        indexed_fatcache[key][on] = raw_data.group_by { |x| on.map { |b| x.send(b) } }
+      end
     end
 
     def get_index(key, on)
