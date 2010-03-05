@@ -52,7 +52,7 @@ class FatCache
 
     def one!(key, spec={})
       result = one(key, spec)
-      raise CacheMiss, "count not find find #{key} with #{spec.inspect}" unless result
+      raise CacheMiss, "could not find #{key} with #{spec.inspect}" unless result
       result
     end
 
