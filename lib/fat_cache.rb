@@ -2,6 +2,8 @@ require 'rubygems'
 require 'ruby-debug'
 
 class FatCache
+  class CacheMiss < RuntimeError; end
+  class AmbiguousHit < RuntimeError; end
 
   class << self
     @initted = false
@@ -38,6 +40,20 @@ class FatCache
       fetch_index!(key, by) unless indexed?(key, by)
 
       indexed_fatcache[key][by][using]
+    end
+
+    def one(key, spec={})
+      result = lookup(key, :by => spec.keys, :using => spec.values)
+      if result && result.length > 1
+        raise AmbiguousHit, "expected one record for #{key} with #{spec.inspect}, got #{result.inspect}" 
+      end
+      result.first if result # makes us return nil if result is nil
+    end
+
+    def one!(key, spec={})
+      result = one(key, spec)
+      raise CacheMiss, "count not find find #{key} with #{spec.inspect}" unless result
+      result
     end
 
     def index(key, on, &block)

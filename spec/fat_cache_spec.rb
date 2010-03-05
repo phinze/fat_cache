@@ -105,6 +105,47 @@ describe FatCache do
     end
   end
 
+  describe 'one(key, spec)' do
+
+    describe 'one', :shared => true do
+      it 'returns one record found in the dataset specified by key, with a spec matching the spec hash' do
+        FatCache.set(:numbers) { [0,1,2,3,4] }
+        FatCache.one(:numbers, :zero? => true).should == 0
+      end
+
+      it 'raises an error if more than one record matches spec' do
+        FatCache.set(:numbers) { [0,1,2,3,4] }
+        lambda {
+          FatCache.one(:numbers, :odd? => false)
+        }.should raise_error(FatCache::AmbiguousHit)
+      end
+
+      it 'raises an error if no cache exists for key' do
+        lambda {
+          FatCache.one(:no_way, :not => 'here')
+        }.should raise_error(/no_way/)
+      end
+    end
+
+    it_should_behave_like 'one'
+
+    it 'returns nil if no record found in index' do
+      FatCache.set(:numbers) { [1,2,3,4] }
+      FatCache.one(:numbers, :zero? => true).should be_nil
+    end
+  end
+
+  describe 'one!(key, spec)' do
+    it_should_behave_like 'one'
+
+    it 'raises an error if no record found in index' do
+      FatCache.set(:numbers) { [1,2,3,4] }
+      lambda {
+        FatCache.one!(:numbers, :zero? => true)
+      }.should raise_error(FatCache::CacheMiss)
+    end
+  end
+
   describe 'index(key, on) { optional_block }' do
     it 'raises an error if there is no raw data to index for specified key' do
       lambda {
