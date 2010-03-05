@@ -4,29 +4,22 @@ class FatCache
 
   class << self
     @initted = false
-    attr_accessor :fetchers, :fatcache, :indexed_fatcache
+    attr_accessor :fatcache, :indexed_fatcache
+    attr_accessor :fetchers, :index_fetchers
 
-    def store(*key_and_maybe_data, &fetcher)
-      init unless initted? # for first time store
+    # Simply store value as key
+    def set(key, &fetcher)
+      init unless initted? # for first time set
 
-      if key_and_maybe_data.length == 2 && fetcher.nil?
-        key, data = key_and_maybe_data
-        fatcache[key] = data
-      elsif key_and_maybe_data.length == 1 && fetcher
-        key = key_and_maybe_data.first
-        fetchers[key] = fetcher
-        fatcache[key] = fetcher.call
-      else
-        argstr   = "#{key_and_maybe_data.length} arguments"
-        blockstr = (block_given?) ? 'a block' : 'no block'
-        raise "Got #{argstr} and #{blockstr}, expected (key, data) or (key) { fetcher block }"
-      end
+      fetchers[key] = fetcher
     end
 
+    # Gets from cache or pays fetch cost if necessary to get, raises if none
+    # available
     def get(key)
       unless cached?(key)
         if fetchable?(key)
-          fatcache[key] = fetchers[key].call
+          fetch!(key)
         else
           raise "no data for #{key}" 
         end
@@ -39,23 +32,17 @@ class FatCache
       by      = [*options.delete(:by)]
       using   = [*options.delete(:using)]
       
-      # create index if it doesn't exist
-      index(key, by) unless indexed?(key, by)
-     
-      return indexed_fatcache[key][by][using]
+      fetch_index!(key, by) unless indexed?(key, by)
+
+      indexed_fatcache[key][by][using]
     end
 
     def index(key, on, &block)
-      # must have cache data to work with
-      ensure_cached(key)
+      on = [*on] # ensure we're dealing with an array, we're such a friendly API!
 
-      # ensure we're dealing with an array, we're such a friendly API!
-      on = [*on]
+      ensure_fetchable(key)
 
-      # init hash if we've never indexed for this key before
-      indexed_fatcache[key] = {} unless indexed_fatcache.has_key?(key)
-
-      raw_data = get(key)
+      index_fetchers[key] = {} unless index_fetchers.has_key?(key)
 
       if block
         # make the cache available to the passed block, and ensure that
@@ -65,12 +52,37 @@ class FatCache
 
         # pass each element of the raw data set into the block, which will
         # compute the key for us
-        indexed_fatcache[key][on] = raw_data.group_by(&wrapped_block)
+        index_fetchers[key][on] = lambda { |data| data.group_by(&wrapped_block) }
       else
         # call each method specified in the `on` array once on each element in
         # the raw dataset, and use the results of those calls to key this index
-        indexed_fatcache[key][on] = raw_data.group_by { |x| on.map { |b| x.send(b) } }
+        index_fetchers[key][on] = lambda { |data| data.group_by { |x| on.map { |b| x.send(b) } } }
       end
+    end
+
+    def invalidate!(key)
+      return unless cached?(key)
+      
+      indexed_fatcache.delete(key)
+      fatcache.delete(key)
+    end
+
+    def fetch!(key)
+      ensure_fetchable(key)
+      fatcache[key] = fetchers[key].call(self)
+    end
+
+    def fetch_index!(key, on)
+      on = [*on]
+
+      index(key, on) unless index_defined?(key, on)
+
+      # init hash if we've never indexed for this key before
+      indexed_fatcache[key] = {} unless indexed_fatcache.has_key?(key)
+
+      raw_data = get(key)
+
+      indexed_fatcache[key][on] = index_fetchers[key][on].call(raw_data)
     end
 
     def get_index(key, on)
@@ -82,12 +94,15 @@ class FatCache
     end
 
     def ensure_cached(key)
-      raise "no data for #{key}" unless cached?(key)
+      raise "no data in cache for #{key}" unless cached?(key)
     end
 
     def ensure_indexed(key, on)
-      ensure_cached(key)
       raise "no index for #{key} on #{on.inspect}" unless indexed?(key, on)
+    end
+
+    def ensure_fetchable(key)
+      raise "cannot fetch for #{key}" unless fetchable?(key)
     end
 
     def cached?(key)
@@ -103,15 +118,16 @@ class FatCache
     def fetchable?(key)
       fetchers && fetchers.has_key?(key)
     end
-
-    def invalidate(key)
-      init unless initted? 
-      
-      fatcache.delete(key)
+    
+    def index_defined?(key, on)
+      index_fetchers                   && 
+      index_fetchers.has_key?(key)     &&
+      index_fetchers[key].has_key?(on)
     end
 
     def reset!
       self.fetchers         = nil
+      self.index_fetchers   = nil
       self.fatcache         = nil
       self.indexed_fatcache = nil
       @initted              = nil
@@ -121,6 +137,7 @@ class FatCache
 
     def init
       self.fetchers         = {}
+      self.index_fetchers   = {}
       self.fatcache         = {}
       self.indexed_fatcache = {}
       @initted             = true
