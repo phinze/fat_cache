@@ -1,11 +1,14 @@
 require 'rubygems'
 require 'ruby-debug'
+
 class FatCache
 
   class << self
     @initted = false
     attr_accessor :fatcache, :indexed_fatcache
     attr_accessor :fetchers, :index_fetchers
+
+    attr_accessor :logger
 
     # Simply store value as key
     def set(key, &fetcher)
@@ -69,7 +72,15 @@ class FatCache
 
     def fetch!(key)
       ensure_fetchable(key)
+      if logger
+        start_time = Time.now
+        logger.info "[fatcache] <#{key}> fetching ..."
+      end
       fatcache[key] = fetchers[key].call(self)
+      if logger
+        took = Time.now - start_time
+        logger.info "[fatcache] <#{key}> done! #{(took / 60).floor} minutes, #{(took % 60).floor} seconds"
+      end
     end
 
     def fetch_index!(key, on)
@@ -82,7 +93,15 @@ class FatCache
 
       raw_data = get(key)
 
+      if logger
+        start_time = Time.now
+        logger.info "[fatcache] <#{key}> indexing on #{on.inspect} ..."
+      end
       indexed_fatcache[key][on] = index_fetchers[key][on].call(raw_data)
+      if logger
+        took = Time.now - start_time
+        logger.info "[fatcache] <#{key}> indexing on #{on.inspect} done! #{(took / 60).floor} minutes, #{(took % 60).floor} seconds"
+      end
     end
 
     def get_index(key, on)

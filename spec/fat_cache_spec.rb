@@ -59,6 +59,19 @@ describe FatCache do
       FatCache.fetch!(:dont_fool_me_twice)
       FatCache.get(:dont_fool_me_twice)
     end
+
+    describe 'when logger is set' do
+      before do
+        @logger = stub('fakelogger')
+        FatCache.logger = @logger
+      end
+      after  { FatCache.logger = nil }
+      it 'prints out once before beginning and once after' do
+        FatCache.set(:you) { 'are my sunshine' }
+        @logger.should_receive(:info).with(/you/).twice
+        FatCache.fetch!(:you)
+      end
+    end
   end
 
   describe 'lookup(key, :by => [:method_names], :using => [:index_key])' do
@@ -150,6 +163,31 @@ describe FatCache do
       end
     end
 
+  end
+
+  describe 'fetch_index!(key, on)' do
+    it 'actually runs through and fetches index'
+    it 'defines an index based on the key if one does not exist'
+    it 'uses the existing index if one is defined'
+    describe 'when logger is set' do
+      before do
+        @logger = stub('fakelogger')
+      end
+      after  { FatCache.logger = nil }
+      it 'prints out once before beginning and once after' do
+        FatCache.set(:you) { 'are my sunshine' }
+        FatCache.fetch!(:you)
+
+        FatCache.logger = @logger
+        @logger.should_receive(:info).twice { |str|
+          str.should match(/you/)
+          str.should match(/index/)
+          str.should match(/nil/)
+        }
+
+        FatCache.fetch_index!(:you, :nil?)
+      end
+    end
   end
 
   describe 'invalidate!(key)' do
