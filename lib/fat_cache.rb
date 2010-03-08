@@ -26,7 +26,7 @@ class FatCache
         if fetchable?(key)
           fetch!(key)
         else
-          raise "no data for #{key}" 
+          raise CacheMiss, "no data for #{key}" 
         end
       end
       fatcache[key]
@@ -59,7 +59,7 @@ class FatCache
     def index(key, on, &block)
       on = [*on] # ensure we're dealing with an array, we're such a friendly API!
 
-      ensure_fetchable(key)
+      ensure_data_available_for(key)
 
       index_fetchers[key] = {} unless index_fetchers.has_key?(key)
 
@@ -120,12 +120,30 @@ class FatCache
       end
     end
 
+    def dump
+      Marshal.dump({
+        :fatcache => self.fatcache,
+        :indexed_fatcache => self.indexed_fatcache
+      })
+    end
+
+    def load!(datastring)
+      init unless initted?
+      data = Marshal.load(datastring)
+      self.fatcache         = data[:fatcache]
+      self.indexed_fatcache = data[:indexed_fatcache]
+    end
+
     def get_index(key, on)
       on = [*on]
 
       ensure_indexed(key, on)
 
       indexed_fatcache[key][on]
+    end
+
+    def ensure_data_available_for(key)
+      raise "no data available for #{key}" unless cached?(key) || fetchable?(key)
     end
 
     def ensure_cached(key)

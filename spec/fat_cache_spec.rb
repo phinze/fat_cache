@@ -257,4 +257,48 @@ describe FatCache do
       end
     end
   end
+
+
+  describe 'dump and load' do
+    it 'marshals out the data in the main cache' do
+      FatCache.set(:fetchy_poo) { "Oh what a fetching young chap" }
+      FatCache.get(:fetchy_poo) # get it fetched
+      data = FatCache.dump
+      FatCache.reset!
+      FatCache.load!(data)
+      FatCache.get(:fetchy_poo).should == "Oh what a fetching young chap" 
+    end
+
+    it 'marshals out the indexed data in the main cache' do
+      FatCache.set(:numbers) { [0,1,2,3,4] }
+      FatCache.index(:numbers, :odd?)
+      FatCache.fetch_index!(:numbers, :odd?)
+      data = FatCache.dump
+      FatCache.reset!
+      FatCache.load!(data)
+      FatCache.lookup(:numbers, :by => :odd?, :using => true).should == [1,3]
+    end
+
+    describe 'after a dump and load' do
+      before do
+        FatCache.set(:numbers) { [0,1,2,3,4] }
+        FatCache.index(:numbers, :odd?)
+        FatCache.fetch_index!(:numbers, :odd?)
+        data = FatCache.dump
+        FatCache.reset!
+        FatCache.load!(data)
+      end
+      it 'allows new indexes to be defined' do
+        FatCache.index(:numbers, :even?)
+        FatCache.lookup(:numbers, :by => :even?, :using => true).should == [0,2,4]
+      end
+
+      it 'does not know about fetchers, so invalidate is permanant' do
+        FatCache.invalidate!(:numbers)
+        lambda {
+          FatCache.get(:numbers)
+        }.should raise_error FatCache::CacheMiss
+      end
+    end
+  end
 end
